@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoteChain Pro | Global Secure Ledger</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        :root {
+            --primary: #1e3a8a;
+            --secondary: #3b82f6;
+            --accent: #10b981;
+            --dark: #0f172a;
+            --light: #f8fafc;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            margin: 0;
+            background: var(--light);
+            color: var(--dark);
+            line-height: 1.6;
+        }
+
+        nav {
+            background: white;
+            padding: 1.2rem 10%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .logo { font-size: 1.6rem; font-weight: 800; color: var(--primary); letter-spacing: -1px; }
+
+        .nav-links button {
+            background: none; border: none; font-family: inherit;
+            font-weight: 600; cursor: pointer; color: var(--dark);
+            margin-left: 20px; transition: 0.3s;
+        }
+
+        .nav-links button:hover { color: var(--secondary); }
+
+        .page { 
+            display: none;
+            padding: 60px 20px; 
+            max-width: 900px; 
+            margin: auto; 
+            animation: fadeIn 0.4s ease-out; 
+        }
+
+        .page.active { display: block; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card {
+            background: white;
+            padding: 40px;
+            border-radius: 24px;
+            box-shadow: 0 4px 25px rgba(0,0,0,0.04);
+            border: 1px solid #f1f5f9;
+            margin-bottom: 30px;
+        }
+
+        .vote-item {
+            background: #f8fafc; padding: 25px; border-radius: 16px;
+            margin-bottom: 20px; transition: 0.3s; border: 1px solid transparent;
+        }
+
+        .progress-bar { height: 12px; background: #e2e8f0; border-radius: 10px; margin: 15px 0; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--secondary)); width: 0%; transition: width 1s ease; }
+
+        .btn-main {
+            background: var(--primary); color: white; border: none;
+            padding: 16px 40px; border-radius: 12px; font-weight: 700;
+            cursor: pointer; transition: 0.3s; font-size: 1.1rem;
+        }
+
+        .btn-vote {
+            width: 100%; padding: 14px; border: 2px solid var(--primary);
+            background: transparent; color: var(--primary); font-weight: 700;
+            border-radius: 10px; cursor: pointer; transition: 0.3s;
+        }
+
+        .btn-vote:hover:not(:disabled) { background: var(--primary); color: white; }
+        .btn-vote:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .hp-field { display: none; }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div class="logo">VOTECHAIN</div>
+        <div class="nav-links">
+            <button onclick="showPage('home')">Home</button>
+            <button onclick="showPage('vote')">Voting App</button>
+            <button onclick="showPage('about')">About Us</button>
+        </div>
+    </nav>
+
+    <section id="home" class="page active">
+        <div style="text-align: center; padding: 60px 0;">
+            <h1>Empowering the <br><span style="color: var(--secondary);">Future of Voting</span></h1>
+            <p>Welcome to VoteChain. Your votes are now stored securely in the cloud.</p>
+            <button class="btn-main" onclick="showPage('vote')">Start Voting Now</button>
+        </div>
+    </section>
+
+    <section id="vote" class="page">
+        <div class="card">
+            <h2>Live Proposals</h2>
+            <div class="hp-field"><input type="text" id="hp_user_name" tabindex="-1"></div>
+
+            <div class="vote-item">
+                <div style="display:flex; justify-content:space-between;">
+                    <strong>Ocean Cleaning AI</strong>
+                    <span id="pct-A">0%</span>
+                </div>
+                <div class="progress-bar"><div id="bar-A" class="progress-fill"></div></div>
+                <button class="btn-vote" id="btn-A" onclick="secureVote('A')">Support Proposal 01</button>
+            </div>
+
+            <div class="vote-item">
+                <div style="display:flex; justify-content:space-between;">
+                    <strong>Space Education</strong>
+                    <span id="pct-B">0%</span>
+                </div>
+                <div class="progress-bar"><div id="bar-B" class="progress-fill"></div></div>
+                <button class="btn-vote" id="btn-B" onclick="secureVote('B')">Support Proposal 02</button>
+            </div>
+            <p id="status-msg" style="text-align:center; font-weight: 600;"></p>
+        </div>
+    </section>
+
+    <section id="about" class="page">
+        <div class="card">
+            <h2>About Our Secure System</h2>
+            <p>This system uses a Cloud Backend (Supabase) to ensure your vote is unique and protected globally.</p>
+        </div>
+    </section>
+
+    <script>
+        // --- 1. CONFIGURATION (Shyiramo keys zawe hano) ---
+        const SUPABASE_URL = 'URL_YA_ZAWE_HANO';
+        const SUPABASE_KEY = 'ANON_KEY_YA_ZAWE_HANO';
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // Security ID
+        const getVoterID = () => btoa(navigator.userAgent + navigator.language + screen.width);
+
+        // --- 2. NAVIGATION ---
+        function showPage(id) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        // --- 3. CORE LOGIC (VOTING) ---
+        async function secureVote(choice) {
+            const status = document.getElementById('status-msg');
+            const voterID = getVoterID();
+
+            // Honeypot check
+            if(document.getElementById('hp_user_name').value !== "") return;
+
+            status.innerText = "Checking authorization...";
+            status.style.color = "var(--primary)";
+
+            // A. Reba niba umuntu yaratoye mbere muri Database
+            const { data: existing, error: checkError } = await _supabase
+                .from('votes')
+                .select('id')
+                .eq('voter_id', voterID);
+
+            if (existing && existing.length > 0) {
+                lockVoting("Access Denied: You have already cast your vote.");
+                return;
+            }
+
+            // B. Kohereza ijwi rishya
+            status.innerText = "Transmitting secure vote...";
+            const { error: insertError } = await _supabase
+                .from('votes')
+                .insert([{ choice: choice, voter_id: voterID }]);
+
+            if (insertError) {
+                status.innerText = "❌ Connection Error. Please try again.";
+                status.style.color = "red";
+            } else {
+                status.innerText = "✅ Vote successfully verified and recorded!";
+                status.style.color = "var(--accent)";
+                fetchLiveResults();
+            }
+        }
+
+        // --- 4. DATA FETCHING (REAL-TIME) ---
+        async function fetchLiveResults() {
+            const { data: allVotes, error } = await _supabase.from('votes').select('choice');
+            
+            if (allVotes) {
+                const total = allVotes.length;
+                const countA = allVotes.filter(v => v.choice === 'A').length;
+                const countB = allVotes.filter(v => v.choice === 'B').length;
+
+                updateBars(countA, countB, total);
+            }
+            
+            // Check if user already voted to keep buttons locked
+            if(localStorage.getItem('_vc_voted_' + getVoterID())) {
+                 lockVoting("You have already voted.");
+            }
+        }
+
+        function updateBars(a, b, total) {
+            if (total === 0) return;
+            const pctA = Math.round((a / total) * 100);
+            const pctB = Math.round((b / total) * 100);
+
+            document.getElementById('bar-A').style.width = pctA + '%';
+            document.getElementById('pct-A').innerText = pctA + '%';
+            document.getElementById('bar-B').style.width = pctB + '%';
+            document.getElementById('pct-B').innerText = pctB + '%';
+        }
+
+        function lockVoting(msg) {
+            document.getElementById('btn-A').disabled = true;
+            document.getElementById('btn-B').disabled = true;
+            document.getElementById('status-msg').innerText = msg;
+            // Save locally as backup check
+            localStorage.setItem('_vc_voted_' + getVoterID(), 'true');
+        }
+
+        // Run on start
+        fetchLiveResults();
+        // Auto-refresh every 10 seconds to see new global votes
+        setInterval(fetchLiveResults, 10000);
+    </script>
+</body>
+</html>
